@@ -15,14 +15,16 @@ docker build -f docker/Dockerfile -t anomaly_transformer .
 
 This uses the Dockerfile located in the docker folder and tags the built image as anomaly_transformer.
 # Running the Container
-
-After building, run the container interactively:
+After building, run the container interactively.
+- **GPU Support**: Ensure that your host system has the appropriate NVIDIA drivers and Docker GPU support set up (e.g., nvidia-container-toolkit) so that the container can access the GPU. You can run:
 
 ```bash
-docker run -it anomaly_transformer
+docker run --gpus all -it anomaly_transformer
 ```
 
 This command will drop you into a Bash shell `(/bin/bash)` inside the container with all the project files copied to `/app`.
+
+Currently, if no NVIDIA GPU is present, the code des not work.
 
 ## Usage
 
@@ -45,19 +47,12 @@ exit
 
 # Notes and Tips
 
-- **GPU Support**: Ensure that your host system has the appropriate NVIDIA drivers and Docker GPU support set up (e.g., nvidia-container-toolkit) so that the container can access the GPU. You can run:
-
-```bash
-docker run --gpus all -it anomaly_transformer
-```
-to enable GPU usage inside the container, if desired.
-
 - **Additional Dependencies**: If your scripts require additional Python packages, add them to a `requirements.txt` file in the project root (or modify the Dockerfile to install them directly).
 
 - **Volume Mounting**: If you prefer to run your project code outside of the container image, you can mount the local directory:
 
 ```bash
-docker run -it -v $(pwd):/app anomaly_transformer
+docker run --gpus all -it -v $(pwd):/app anomaly_transformer
 ```
 
 This way, any changes you make locally are reflected in the container.
