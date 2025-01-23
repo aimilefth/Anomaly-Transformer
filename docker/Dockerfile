@@ -4,7 +4,7 @@ FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 # First copy requirements.txt and install dependencies
 COPY docker/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip==24.0.0 && \
-    pip install --no-cache-dir uv && \
+    pip install --no-cache-dir uv==0.5.23 && \
     uv pip install -r /tmp/requirements.txt --system --no-cache --compile-bytecode
 
 # Set a working directory inside the container
