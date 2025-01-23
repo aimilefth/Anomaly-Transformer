@@ -57,5 +57,11 @@ docker run --gpus all -it -v $(pwd):/app anomaly_transformer
 
 This way, any changes you make locally are reflected in the container.
 
+- **Running Marimo**: To enable marimo edit and access the Marimo notebook interface, run the container with port forwarding:
+
+```bash
+docker run --gpus all -it -v $(pwd):/app -p 8080:8080 anomaly_transformer marimo edit --host 0.0.0.0 --port 8080 /app/marimo.py
+```
+
 - **Maintaining Data**: If your scripts produce large outputs (e.g., logs, models), consider mounting a separate volume or directory on the host for persistent storage
 
