@@ -6,7 +6,8 @@ COPY docker/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip==24.0.0 && \
     pip install --no-cache-dir uv==0.5.23 && \
     uv pip install -r /tmp/requirements.txt --system --no-cache --compile-bytecode
-
+    
+RUN  uv pip install numpy==1.26.4 --system --no-cache --compile-bytecode
 # Set a working directory inside the container
 WORKDIR /app
 
