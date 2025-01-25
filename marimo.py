@@ -97,7 +97,7 @@ def _(mo):
 
 
 @app.cell
-def _(FlopCountAnalysis, flop_count_table, summary, torch):
+def _(FlopCountAnalysis, device, flop_count_table, summary, torch):
     def print_fvcore_flops(model, dummy_input) -> None:
         flops = FlopCountAnalysis(model, dummy_input)
         print(f"Total FLOPs: {flops.total():,}")
@@ -123,7 +123,31 @@ def _(FlopCountAnalysis, flop_count_table, summary, torch):
         print_fvcore_flops(model, dummy_input)
         print_torchinfo_summary(model, input_shape, device)
 
-    return print_fvcore_flops, print_metrics, print_torchinfo_summary
+    def export_to_onnx(model, input_shape, onnx_path) -> None:
+        # Export to ONNX
+        dummy_input = torch.randn(input_shape).to(device)
+        torch.onnx.export(
+            model=model,
+            args=dummy_input,
+            f=onnx_path,
+            export_params=True,  # Store trained parameters
+            opset_version=15,  # ONNX opset version to use
+            do_constant_folding=True,  # Optimize constants
+            input_names=["input"],  # Input tensor name
+            output_names=["output"],  # Output tensor name
+            dynamic_axes={  # Dynamic axes if needed
+                "input": {0: "batch_size"},
+                "output": {0: "batch_size"},
+            },
+        )
+        print(f"Model successfully exported to {onnx_path}")
+
+    return (
+        export_to_onnx,
+        print_fvcore_flops,
+        print_metrics,
+        print_torchinfo_summary,
+    )
 
 
 @app.cell
@@ -272,6 +296,22 @@ def _(
         "LSTM Autoencoder    -------------------------------------------------------------"
     )
     print_metrics(lstm_auto_priv_model_priv, input_shape_priv, device)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""## Save to ONNX""")
+    return
+
+
+@app.cell
+def _(anomaly_transformer_model_smd, export_to_onnx, input_shape_smd):
+    export_to_onnx(
+        anomaly_transformer_model_smd,
+        input_shape_smd,
+        "anomaly_transformer_model_smd.onnx",
+    )
     return
 
 
