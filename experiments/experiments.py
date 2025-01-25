@@ -51,6 +51,7 @@ def get_current_timestamp() -> str:
 def get_model_metrics(model, input_shape, device="cpu") -> Dict[str, str]:
     """
     Returns a dictionary with FLOPs table (fvcore) and torchinfo summary.
+    Adds torchinfo-specific FLOPs and parameter counts.
     """
     model.to(device)
     model.eval()
@@ -60,24 +61,30 @@ def get_model_metrics(model, input_shape, device="cpu") -> Dict[str, str]:
     flops = FlopCountAnalysis(model, dummy_input)
     flops_table = flop_count_table(flops)
 
-    # torchinfo summary
-    model_summary_str = str(
-        summary(
-            model,
-            input_size=input_shape,
-            col_names=[
-                "input_size",
-                "output_size",
-                "num_params",
-                "kernel_size",
-                "mult_adds",
-            ],
-            verbose=0,
-            device=device,
-        )
+    # torchinfo summary with additional metrics
+    model_summary = summary(
+        model,
+        input_size=input_shape,
+        col_names=[
+            "input_size",
+            "output_size",
+            "num_params",
+            "kernel_size",
+            "mult_adds",
+        ],
+        verbose=0,
+        device=device,
     )
 
-    return {"fvcore_flops": flops_table, "torchinfo_summary": model_summary_str}
+    model_summary_str = str(model_summary)
+
+    return {
+        "fvcore_flops": flops,
+        "fvcore_flops_table": flops_table,
+        "torchinfo_summary": model_summary_str,
+        "torchinfo_flops": model_summary.total_mult_adds,
+        "torchinfo_params": model_summary.total_params,
+    }
 
 
 def detection_adjustment(preds: np.ndarray, labels: np.ndarray) -> np.ndarray:
@@ -263,7 +270,9 @@ def train_and_eval_anomaly_transformer(
                 prior_loss = 0.0
                 for u in range(len(prior)):
                     # normalize prior
-                    norm_prior = prior[u] / (prior[u].sum(dim=-1, keepdim=True) + 1e-8)
+                    norm_prior = prior[u] / torch.unsqueeze(
+                        torch.sum(prior[u], dim=-1), dim=-1
+                    ).repeat(1, 1, 1, self.win_size)
                     series_loss += torch.mean(
                         my_kl_loss(series[u], norm_prior.detach())
                     )
@@ -314,9 +323,9 @@ def train_and_eval_anomaly_transformer(
             prior_loss = 0.0
             for u in range(len(prior)):
                 # normalize prior along time dimension
-                normalized_prior = prior[u] / (
-                    torch.sum(prior[u], dim=-1, keepdim=True) + 1e-8
-                )
+                normalized_prior = prior[u] / torch.unsqueeze(
+                    torch.sum(prior[u], dim=-1), dim=-1
+                ).repeat(1, 1, 1, self.win_size)
                 # KL in both directions
                 series_loss += torch.mean(
                     my_kl_loss(series[u], normalized_prior.detach())
@@ -437,7 +446,7 @@ def train_and_eval_anomaly_transformer(
 
     # combine
     combined_energy = np.concatenate([train_energy, test_energy_for_thresh], axis=0)
-    thresh = np.percentile(combined_energy, 100 - anormly_ratio * 100)
+    thresh = np.percentile(combined_energy, 100 - anormly_ratio)
 
     # (c) final test predictions
     pred_list = []
@@ -485,7 +494,7 @@ def train_and_eval_anomaly_transformer(
 
     results = {
         "train_energy_mean": float(train_energy.mean()),
-        "train_losses":train_losses,
+        "train_losses": train_losses,
         "val1_losses": val1_losses,
         "val2_losses": val2_losses,
         "threshold": float(thresh),
@@ -646,7 +655,7 @@ def train_and_eval_lstm_autoencoder(
     thr_errs = np.concatenate(thr_errs, axis=0).reshape(-1)
 
     combined_errs = np.concatenate([train_errs, thr_errs], axis=0)
-    thresh = np.percentile(combined_errs, 100 - anormly_ratio * 100)
+    thresh = np.percentile(combined_errs, 100 - anormly_ratio)
 
     # (c) final test predictions
     preds_list = []
@@ -689,6 +698,12 @@ def train_and_eval_lstm_autoencoder(
 
 def main():
     ###########################################################################
+    # Generate timestamp for the entire experiment run
+    ###########################################################################
+    run_timestamp = get_current_timestamp()
+    global RESULTS_FILE
+    RESULTS_FILE = os.path.join(EXPERIMENTS_DIR, f"experiments_{run_timestamp}.json")
+    ###########################################################################
     # Allow GPU selection
     ###########################################################################
     GPU_ID = 1  # <--- Change this to pick your GPU
@@ -700,12 +715,7 @@ def main():
         device = "cpu"
         print("GPU not available, running on CPU.")
 
-    # Prepare or load an existing experiments.json
-    if os.path.exists(RESULTS_FILE):
-        with open(RESULTS_FILE, "r") as f:
-            all_experiments = json.load(f)
-    else:
-        all_experiments = []
+    all_experiments = []
 
     ###########################################################################
     # Grid search ranges
@@ -747,12 +757,13 @@ def main():
     print("========== Grid Search: AnomalyTransformer ==========")
     for combo in at_combos:
         d_model, n_heads, e_layers, d_ff = combo
-
+        starting_datetime = get_current_timestamp()
         print(
             f"[{current_run}/{total_runs}] Running AnomalyTransformer with "
             f"d_model={d_model}, n_heads={n_heads}, e_layers={e_layers}, d_ff={d_ff}"
+            f"\n Starting at {starting_datetime}"
         )
-
+        start_time = time.time()
         exp_id = str(uuid.uuid4())
 
         # Instantiate the model to compute metrics (FLOPs, summary, etc.)
@@ -789,7 +800,7 @@ def main():
             dataset_name="SMD",
             data_path="../dataset/SMD",
         )
-
+        training_duration = time.time() - start_time
         # Save the trained model
         model_path = os.path.join(OUTPUTS_DIR, f"anomaly_transformer_{exp_id}.pth")
         torch.save(trained_model.state_dict(), model_path)
@@ -798,7 +809,8 @@ def main():
         experiment_record = {
             "uuid": exp_id,
             "model_type": "AnomalyTransformer",
-            "timestamp": get_current_timestamp(),
+            "timestamp": starting_datetime,
+            "training_duration": float(training_duration),
             "hyperparams": {
                 "d_model": d_model,
                 "n_heads": n_heads,
@@ -827,12 +839,13 @@ def main():
     print("========== Grid Search: LSTMAutoencoder ==========")
     for combo in lstm_combos:
         hidden_dim1, hidden_dim2 = combo
-
+        starting_datetime = get_current_timestamp()
         print(
             f"[{current_run}/{total_runs}] Running LSTMAutoencoder with "
             f"hidden_dim1={hidden_dim1}, hidden_dim2={hidden_dim2}"
+            f"\n Starting at {starting_datetime}"
         )
-
+        start_time = time.time()
         exp_id = str(uuid.uuid4())
 
         # Metrics
@@ -861,14 +874,15 @@ def main():
             data_path="../dataset/SMD",
             device=device,
         )
-
+        training_duration = time.time() - start_time
         model_path = os.path.join(OUTPUTS_DIR, f"lstm_autoencoder_{exp_id}.pth")
         torch.save(trained_model.state_dict(), model_path)
 
         experiment_record = {
             "uuid": exp_id,
             "model_type": "LSTMAutoencoder",
-            "timestamp": get_current_timestamp(),
+            "timestamp": starting_datetime,
+            "training_duration": float(training_duration),
             "hyperparams": {
                 "hidden_dim1": hidden_dim1,
                 "hidden_dim2": hidden_dim2,
