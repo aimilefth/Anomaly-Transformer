@@ -84,25 +84,27 @@ def detection_adjustment(preds: np.ndarray, labels: np.ndarray) -> np.ndarray:
     """
     Adjust detection in time-series: once an anomaly is detected in an anomalous region,
     label the entire region as anomaly.
+    Returns a NEW array instead of modifying in-place.
     """
+    adjusted_preds = preds.copy()  # Create a copy of the input array
     anomaly_state = False
     for i in range(len(labels)):
-        if labels[i] == 1 and preds[i] == 1 and not anomaly_state:
+        if labels[i] == 1 and adjusted_preds[i] == 1 and not anomaly_state:
             anomaly_state = True
             # go backwards
             for j in range(i, -1, -1):
                 if labels[j] == 0:
                     break
                 else:
-                    preds[j] = 1
+                    adjusted_preds[j] = 1
             # go forwards
             for j in range(i, len(labels)):
                 if labels[j] == 0:
                     break
                 else:
-                    preds[j] = 1
+                    adjusted_preds[j] = 1
         elif labels[i] == 0:
             anomaly_state = False
         if anomaly_state:
-            preds[i] = 1
-    return preds
+            adjusted_preds[i] = 1
+    return adjusted_preds  # Return the modified copy

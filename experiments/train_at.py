@@ -364,19 +364,22 @@ def train_and_eval_anomaly_transformer(
     preds = np.concatenate(pred_list, axis=0).reshape(-1)
     gt = np.concatenate(test_labels_list, axis=0).reshape(-1)
 
-    # final threshold
     y_hat = (preds > thresh).astype(int)
-    # detection adjustment
-    y_hat = detection_adjustment(y_hat, gt)
-
-    # metrics
+    y_hat_det_adj = detection_adjustment(y_hat, gt)
     scores = compute_scores(gt, y_hat)
+    scores_det_adj = compute_scores(gt, y_hat_det_adj)
 
     print("==== AnomalyTransformer Final Results ====")
     print(f"Threshold: {thresh:.6f}")
+    print("Scores Without Detection Adjustment")
     print(
         f"Accuracy: {scores['accuracy']:.4f}, Precision: {scores['precision']:.4f}, "
         f"Recall: {scores['recall']:.4f}, F1: {scores['f1_score']:.4f}"
+    )
+    print("Scores With Detection Adjustment")
+    print(
+        f"Accuracy: {scores_det_adj['accuracy']:.4f}, Precision: {scores_det_adj['precision']:.4f}, "
+        f"Recall: {scores_det_adj['recall']:.4f}, F1: {scores_det_adj['f1_score']:.4f}"
     )
 
     results = {
@@ -386,5 +389,6 @@ def train_and_eval_anomaly_transformer(
         "val2_losses": val2_losses,
         "threshold": float(thresh),
         "scores": scores,
+        "scores_w_det_adj": scores_det_adj,
     }
     return results, model

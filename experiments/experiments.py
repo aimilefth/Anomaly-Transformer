@@ -54,26 +54,26 @@ def main():
     # Grid search ranges
     ###########################################################################
     all_experiments = []
-    # anomaly_transformer_hp = {
-    #     "d_model": [32, 128],
-    #     "n_heads": [2, 4],
-    #     "e_layers": [1, 2],
-    #     "d_ff": [32, 128],
-    # }
-    # lstm_auto_hp = {
-    #     "hidden_dim1": [4, 16, 64, 128],
-    #     "hidden_dim2": [4, 16, 64, 128],
-    # }
     anomaly_transformer_hp = {
-        "d_model": [32],
-        "n_heads": [2],
-        "e_layers": [1],
-        "d_ff": [32],
+        "d_model": [32, 128],
+        "n_heads": [2, 4],
+        "e_layers": [1, 2],
+        "d_ff": [32, 128],
     }
     lstm_auto_hp = {
-        "hidden_dim1": [4],
-        "hidden_dim2": [4],
+        "hidden_dim1": [4, 16, 64, 128],
+        "hidden_dim2": [4, 16, 64, 128],
     }
+    # anomaly_transformer_hp = {
+    #     "d_model": [32],
+    #     "n_heads": [2],
+    #     "e_layers": [1],
+    #     "d_ff": [32],
+    # }
+    # lstm_auto_hp = {
+    #     "hidden_dim1": [4],
+    #     "hidden_dim2": [4],
+    # }
 
     # Create lists of all combinations
     from itertools import product
@@ -125,7 +125,7 @@ def main():
             device=device,
             lr=1e-4,
             k=3.0,
-            num_epochs=1,
+            num_epochs=10,
             batch_size=256,
             anormly_ratio=0.5,
             win_size=100,
@@ -199,7 +199,7 @@ def main():
             hidden_dim1=hidden_dim1,
             hidden_dim2=hidden_dim2,
             lr=1e-3,
-            num_epochs=1,
+            num_epochs=10,
             batch_size=256,
             anormly_ratio=0.5,
             win_size=100,
