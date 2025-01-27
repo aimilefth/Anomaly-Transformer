@@ -135,3 +135,5 @@ checkpoints
 *.pth
 *.log
 *.json
+*.pdf
+*.onnx

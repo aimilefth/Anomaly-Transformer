@@ -4,7 +4,7 @@ import torch
 import os
 
 
-class EarlyStopping:
+class EarlyStoppingAnomalyTransformer:
     def __init__(self, patience=7, verbose=False, dataset_name="", delta=0):
         self.patience = patience
         self.verbose = verbose
@@ -35,17 +35,4 @@ class EarlyStopping:
         else:
             self.best_score = score
             self.best_score2 = score2
-            self.save_checkpoint(val_loss, val_loss2, model, path)
             self.counter = 0
-
-    def save_checkpoint(self, val_loss, val_loss2, model, path):
-        if self.verbose:
-            print(
-                f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
-            )
-        torch.save(
-            model.state_dict(),
-            os.path.join(path, str(self.dataset) + "_checkpoint.pth"),
-        )
-        self.val_loss_min = val_loss
-        self.val_loss2_min = val_loss2

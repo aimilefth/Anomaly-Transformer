@@ -270,7 +270,7 @@ def train_and_eval_anomaly_transformer(
         )
 
         # You could optionally do LR adjust or early stopping here
-        adjust_learning_rate(optimizer, epoch + 1, lr)
+        ##adjust_learning_rate(optimizer, epoch + 1, lr)
 
     # -------------------------
     # Final Evaluation

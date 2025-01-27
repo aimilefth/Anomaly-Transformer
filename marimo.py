@@ -315,5 +315,23 @@ def _(anomaly_transformer_model_smd, export_to_onnx, input_shape_smd):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""## Plot Experiments""")
+    return
+
+
+@app.cell
+def _(os):
+    from experiments.visualizations import plot_pareto
+
+    EXPERIMENTS_JSON_PATH = os.path.join(
+        "experiments", "experiments_2025-01-26 17:28:54.json"
+    )
+
+    plot_pareto(EXPERIMENTS_JSON_PATH)
+    return EXPERIMENTS_JSON_PATH, plot_pareto
+
+
 if __name__ == "__main__":
     app.run()
